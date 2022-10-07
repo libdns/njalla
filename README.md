@@ -14,7 +14,7 @@ import (
 	"context"
 	"fmt"
 
-    "github.com/libdns/libdns/njalla"
+    "github.com/libdns/njalla"
 )
 
 func main() {
