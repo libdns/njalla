@@ -11,24 +11,24 @@ Example
 package main
 
 import (
-	"context"
-	"fmt"
+    "context"
+    "fmt"
 
-    "github.com/libdns/njalla"
+    p "github.com/libdns/njalla"
 )
 
 func main() {
-	p := Provider{
-		APIToken: "TOKEN",
-	}
+    p := Provider{
+        APIToken: "TOKEN",
+    }
 
-	records, err := p.GetRecords(context.Background(), "domain.tld")
-	if err != nil {
-		fmt.Printf("Error: %s", err.Error())
-		return
-	}
+    records, err := p.GetRecords(context.Background(), "domain.tld")
+    if err != nil {
+        fmt.Printf("Error: %s", err.Error())
+        return
+    }
 
-	fmt.Println(records)
+    fmt.Println(records)
 }
 ```
 
