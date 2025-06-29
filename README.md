@@ -5,17 +5,11 @@ Njalla for [`libdns`](https://github.com/libdns/libdns)
 
 This package implements the [libdns interfaces](https://github.com/libdns/libdns) for [Njalla](https://njal.la/), allowing you to manage DNS records.
 
-## Compatibility
-
-This provider is compatible with libdns v1.1.0 and follows the updated interfaces that use the new Record type system.
-
 ## Configuration
 
 To use this provider, you'll need to obtain an API token from Njalla. You can generate an API token from your Njalla account settings.
 
 ## Example
-
-Here's an example of how to use this provider:
 
 ```go
 package main
@@ -71,14 +65,8 @@ func main() {
 }
 ```
 
-## Supported Record Types
+## Caveats
 
-The following record types are fully supported:
-- A
-- AAAA
-- CNAME
-- TXT
-- MX
-- SRV
-
-Other record types are supported using the generic RR structure.
+- This provider is compatible with libdns v1.1.0 and follows the updated interfaces that use the new Record type system.
+- The following record types are fully supported: A, AAAA, CNAME, TXT, MX, SRV
+- Other record types are supported using the generic RR structure.
