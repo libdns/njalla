@@ -1044,6 +1044,29 @@ func TestExtractRecordID(t *testing.T) {
 			expected: "srv-id",
 		},
 		{
+			name: "ServiceBinding with ID",
+			record: libdns.ServiceBinding{
+				Name:     "test",
+				Priority: 1,
+				Target:   "target.example.com",
+				Params:   make(libdns.SvcParams),
+				ProviderData: map[string]string{
+					"id": "service-id",
+				},
+			},
+			expected: "service-id",
+		},
+		{
+			name: "ServiceBinding without ID",
+			record: libdns.ServiceBinding{
+				Name:     "test",
+				Priority: 1,
+				Target:   "target.example.com",
+				Params:   make(libdns.SvcParams),
+			},
+			expected: "",
+		},
+		{
 			name: "Address without ID",
 			record: libdns.Address{
 				Name: "test",
