@@ -1163,3 +1163,232 @@ func TestLibdnsRecordToNjalla_ComplexNames(t *testing.T) {
 		})
 	}
 }
+
+func TestNjallaRecordToLibdns_HTTPSRecord(t *testing.T) {
+	record := njallaRecord{
+		ID:      "https-id",
+		Domain:  "example.com",
+		Type:    "HTTPS",
+		Name:    "test",
+		Content: `alpn=h2,h3 port=443`,
+		TTL:     3600,
+		Prio:    1,
+		Target:  "target.example.com",
+	}
+
+	result, err := njallaRecordToLibdns(record)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	svcBinding, ok := result.(libdns.ServiceBinding)
+	if !ok {
+		t.Fatalf("Expected libdns.ServiceBinding, got %T", result)
+	}
+
+	if svcBinding.Name != "test" {
+		t.Errorf("Expected name 'test', got %s", svcBinding.Name)
+	}
+
+	if svcBinding.TTL != time.Hour {
+		t.Errorf("Expected TTL 1h, got %v", svcBinding.TTL)
+	}
+
+	if svcBinding.Priority != 1 {
+		t.Errorf("Expected priority 1, got %d", svcBinding.Priority)
+	}
+
+	if svcBinding.Target != "target.example.com" {
+		t.Errorf("Expected target 'target.example.com', got %s", svcBinding.Target)
+	}
+
+	pd, ok := svcBinding.ProviderData.(map[string]string)
+	if !ok {
+		t.Fatal("Expected ProviderData to be map[string]string")
+	}
+
+	if pd["id"] != "https-id" {
+		t.Errorf("Expected ID 'https-id', got %s", pd["id"])
+	}
+
+	// Check that SvcParams were parsed
+	if svcBinding.Params == nil {
+		t.Fatal("Expected Params to be non-nil")
+	}
+}
+
+func TestNjallaRecordToLibdns_SVCBRecord(t *testing.T) {
+	record := njallaRecord{
+		ID:      "svcb-id",
+		Domain:  "example.com",
+		Type:    "SVCB",
+		Name:    "_443._tcp",
+		Content: "",
+		TTL:     7200,
+		Prio:    0,
+		Target:  ".",
+	}
+
+	result, err := njallaRecordToLibdns(record)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	svcBinding, ok := result.(libdns.ServiceBinding)
+	if !ok {
+		t.Fatalf("Expected libdns.ServiceBinding, got %T", result)
+	}
+
+	if svcBinding.Name != "_443._tcp" {
+		t.Errorf("Expected name '_443._tcp', got %s", svcBinding.Name)
+	}
+
+	if svcBinding.Priority != 0 {
+		t.Errorf("Expected priority 0, got %d", svcBinding.Priority)
+	}
+
+	if svcBinding.Target != "." {
+		t.Errorf("Expected target '.', got %s", svcBinding.Target)
+	}
+}
+
+func TestNjallaRecordToLibdns_HTTPSRecordWithInvalidParams(t *testing.T) {
+	record := njallaRecord{
+		ID:      "https-id",
+		Domain:  "example.com",
+		Type:    "HTTPS",
+		Name:    "test",
+		Content: "invalid-params-format",
+		TTL:     3600,
+		Prio:    1,
+		Target:  "target.example.com",
+	}
+
+	result, err := njallaRecordToLibdns(record)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	svcBinding, ok := result.(libdns.ServiceBinding)
+	if !ok {
+		t.Fatalf("Expected libdns.ServiceBinding, got %T", result)
+	}
+
+	// Should have parsed the "invalid-params-format" as a key (not an error)
+	if svcBinding.Params == nil {
+		t.Fatal("Expected Params to be non-nil")
+	}
+
+	// The "invalid-params-format" should be parsed as a key with empty value
+	if _, exists := svcBinding.Params["invalid-params-format"]; !exists {
+		t.Errorf("Expected 'invalid-params-format' to be parsed as a key, got %v", svcBinding.Params)
+	}
+}
+
+func TestLibdnsRecordToNjalla_ServiceBindingRecord(t *testing.T) {
+	// Create SvcParams
+	params := make(libdns.SvcParams)
+	params["alpn"] = []string{"h2", "h3"}
+	params["port"] = []string{"443"}
+
+	record := libdns.ServiceBinding{
+		Name:     "test",
+		TTL:      2 * time.Hour,
+		Priority: 1,
+		Target:   "target.example.com",
+		Params:   params,
+		ProviderData: map[string]string{
+			"id": "service-id",
+		},
+	}
+
+	result, err := libdnsRecordToNjalla(record, "example.com")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if result.ID != "service-id" {
+		t.Errorf("Expected ID 'service-id', got %s", result.ID)
+	}
+
+	if result.Type != "HTTPS" {
+		t.Errorf("Expected type 'HTTPS', got %s", result.Type)
+	}
+
+	if result.Name != "test" {
+		t.Errorf("Expected name 'test', got %s", result.Name)
+	}
+
+	if result.Target != "target.example.com" {
+		t.Errorf("Expected target 'target.example.com', got %s", result.Target)
+	}
+
+	if result.Prio != 1 {
+		t.Errorf("Expected prio 1, got %d", result.Prio)
+	}
+
+	if result.TTL != 7200 {
+		t.Errorf("Expected TTL 7200, got %d", result.TTL)
+	}
+
+	// Check that SvcParams were serialized to content
+	if result.Content == "" {
+		t.Error("Expected Content to contain serialized SvcParams")
+	}
+}
+
+func TestLibdnsRecordToNjalla_ServiceBindingWithoutParams(t *testing.T) {
+	record := libdns.ServiceBinding{
+		Name:     "test",
+		TTL:      time.Hour,
+		Priority: 0,
+		Target:   ".",
+	}
+
+	result, err := libdnsRecordToNjalla(record, "example.com")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if result.Type != "HTTPS" {
+		t.Errorf("Expected type 'HTTPS', got %s", result.Type)
+	}
+
+	if result.Prio != 0 {
+		t.Errorf("Expected priority 0, got %d", result.Prio)
+	}
+
+	if result.Target != "." {
+		t.Errorf("Expected target '.', got %s", result.Target)
+	}
+
+	// Content should be empty when no params
+	if result.Content != "" {
+		t.Errorf("Expected empty content when no params, got %s", result.Content)
+	}
+}
+
+func TestLibdnsRecordToNjalla_ServiceBindingWithFallbackContent(t *testing.T) {
+	// Create params with _content fallback
+	params := make(libdns.SvcParams)
+	params["_content"] = []string{"original-unparseable-content"}
+	params["alpn"] = []string{"h2"} // This should be ignored in favor of _content
+
+	record := libdns.ServiceBinding{
+		Name:     "test",
+		TTL:      time.Hour,
+		Priority: 1,
+		Target:   "target.example.com",
+		Params:   params,
+	}
+
+	result, err := libdnsRecordToNjalla(record, "example.com")
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// Should use the _content fallback value
+	if result.Content != "original-unparseable-content" {
+		t.Errorf("Expected content 'original-unparseable-content', got %s", result.Content)
+	}
+}

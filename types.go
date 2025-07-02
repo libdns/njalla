@@ -153,6 +153,34 @@ func njallaRecordToLibdns(record njallaRecord) (libdns.Record, error) {
 			},
 		}, nil
 
+	case "HTTPS", "SVCB":
+		// Parse SvcParams from content if present
+		var params libdns.SvcParams
+		if record.Content != "" {
+			var err error
+			params, err = libdns.ParseSvcParams(record.Content)
+			if err != nil {
+				// If parsing fails, create empty params and store the content as a fallback
+				params = make(libdns.SvcParams)
+				// Store unparseable content as a fallback
+				params["_content"] = []string{record.Content}
+			}
+		} else {
+			// Initialize empty params if no content
+			params = make(libdns.SvcParams)
+		}
+
+		return libdns.ServiceBinding{
+			Name:     record.Name,
+			TTL:      recordTTL,
+			Priority: uint16(record.Prio),
+			Target:   record.Target,
+			Params:   params,
+			ProviderData: map[string]string{
+				"id": record.ID,
+			},
+		}, nil
+
 	default:
 		// For other record types, use a generic RR
 		return libdns.RR{
@@ -176,7 +204,7 @@ func libdnsRecordToNjalla(record libdns.Record, zone string) (njallaRecord, erro
 
 	// Extract ID from ProviderData if available
 	var id string
-	
+
 	// Handle each record type to extract the ID and other data
 	switch r := record.(type) {
 	case libdns.Address:
@@ -218,12 +246,37 @@ func libdnsRecordToNjalla(record libdns.Record, zone string) (njallaRecord, erro
 			id = pd["id"]
 		}
 
+	case libdns.ServiceBinding:
+		// Determine if this should be HTTPS or SVCB
+		// For ECH functionality, we default to HTTPS unless specifically indicated otherwise
+		// This could be enhanced later with additional logic if needed
+		result.Type = "HTTPS"
+		result.Name = libdns.RelativeName(r.Name, zone+".")
+		result.Target = r.Target
+		result.Prio = int(r.Priority)
+
+		// Handle SvcParams - serialize them to content field
+		// Note: This is a workaround since Njalla's API doesn't fully support SvcParams
+		if r.Params != nil && len(r.Params) > 0 {
+			// If there's a special _content key (from parsing errors), use it directly
+			if content, exists := r.Params["_content"]; exists && len(content) > 0 {
+				result.Content = content[0]
+			} else {
+				// Otherwise, serialize the params to string format
+				result.Content = r.Params.String()
+			}
+		}
+
+		if pd, ok := r.ProviderData.(map[string]string); ok {
+			id = pd["id"]
+		}
+
 	case libdns.RR:
 		result.Type = r.Type
 		result.Content = r.Data
 		// RR types don't have ProviderData, but we can store ID in a standardized way
 		// This is a limitation - libdns.RR doesn't support ProviderData
-		
+
 	default:
 		return result, fmt.Errorf("unsupported record type: %T", record)
 	}
@@ -235,4 +288,3 @@ func libdnsRecordToNjalla(record libdns.Record, zone string) (njallaRecord, erro
 
 	return result, nil
 }
-
