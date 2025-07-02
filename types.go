@@ -153,7 +153,35 @@ func njallaRecordToLibdns(record njallaRecord) (libdns.Record, error) {
 			},
 		}, nil
 
-	case "HTTPS", "SVCB":
+	case "HTTPS":
+		// Parse SvcParams from content if present
+		var params libdns.SvcParams
+		if record.Content != "" {
+			var err error
+			params, err = libdns.ParseSvcParams(record.Content)
+			if err != nil {
+				// If parsing fails, create empty params and store the content as a fallback
+				params = make(libdns.SvcParams)
+				// Store unparseable content as a fallback
+				params["_content"] = []string{record.Content}
+			}
+		} else {
+			// Initialize empty params if no content
+			params = make(libdns.SvcParams)
+		}
+
+		return libdns.ServiceBinding{
+			Name:     record.Name,
+			TTL:      recordTTL,
+			Priority: uint16(record.Prio),
+			Target:   record.Target,
+			Params:   params,
+			ProviderData: map[string]string{
+				"id": record.ID,
+			},
+		}, nil
+
+	case "SVCB":
 		// Parse SvcParams from content if present
 		var params libdns.SvcParams
 		if record.Content != "" {
