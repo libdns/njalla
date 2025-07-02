@@ -285,7 +285,7 @@ func libdnsRecordToNjalla(record libdns.Record, zone string) (njallaRecord, erro
 
 		// Handle SvcParams - serialize them to content field
 		// Note: This is a workaround since Njalla's API doesn't fully support SvcParams
-		if r.Params != nil && len(r.Params) > 0 {
+		if len(r.Params) > 0 {
 			// If there's a special _content key (from parsing errors), use it directly
 			if content, exists := r.Params["_content"]; exists && len(content) > 0 {
 				result.Content = content[0]
