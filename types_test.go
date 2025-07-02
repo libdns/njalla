@@ -1170,7 +1170,8 @@ func TestNjallaRecordToLibdns_HTTPSRecord(t *testing.T) {
 		Domain:  "example.com",
 		Type:    "HTTPS",
 		Name:    "test",
-		Content: `alpn=h2,h3 port=443`,
+		Content: "",                    // Content should be empty for HTTPS records
+		Value:   `alpn=h2,h3 port=443`, // SvcParams go in value field
 		TTL:     3600,
 		Prio:    1,
 		Target:  "target.example.com",
@@ -1211,7 +1212,7 @@ func TestNjallaRecordToLibdns_HTTPSRecord(t *testing.T) {
 		t.Errorf("Expected ID 'https-id', got %s", pd["id"])
 	}
 
-	// Check that SvcParams were parsed
+	// Check that SvcParams were parsed from value field
 	if svcBinding.Params == nil {
 		t.Fatal("Expected Params to be non-nil")
 	}
@@ -1258,7 +1259,8 @@ func TestNjallaRecordToLibdns_HTTPSRecordWithInvalidParams(t *testing.T) {
 		Domain:  "example.com",
 		Type:    "HTTPS",
 		Name:    "test",
-		Content: "invalid-params-format",
+		Content: "",                      // Content should be empty for HTTPS records
+		Value:   "invalid-params-format", // Invalid params in value field
 		TTL:     3600,
 		Prio:    1,
 		Target:  "target.example.com",
@@ -1331,9 +1333,14 @@ func TestLibdnsRecordToNjalla_ServiceBindingRecord(t *testing.T) {
 		t.Errorf("Expected TTL 7200, got %d", result.TTL)
 	}
 
-	// Check that SvcParams were serialized to content
-	if result.Content == "" {
-		t.Error("Expected Content to contain serialized SvcParams")
+	// Check that SvcParams were serialized to value field (not content)
+	if result.Value == "" {
+		t.Error("Expected Value to contain serialized SvcParams")
+	}
+
+	// Content should be empty for HTTPS records
+	if result.Content != "" {
+		t.Errorf("Expected empty Content for HTTPS records, got %s", result.Content)
 	}
 }
 
@@ -1362,7 +1369,11 @@ func TestLibdnsRecordToNjalla_ServiceBindingWithoutParams(t *testing.T) {
 		t.Errorf("Expected target '.', got %s", result.Target)
 	}
 
-	// Content should be empty when no params
+	// Both value and content should be empty when no params
+	if result.Value != "" {
+		t.Errorf("Expected empty value when no params, got %s", result.Value)
+	}
+
 	if result.Content != "" {
 		t.Errorf("Expected empty content when no params, got %s", result.Content)
 	}
@@ -1387,8 +1398,13 @@ func TestLibdnsRecordToNjalla_ServiceBindingWithFallbackContent(t *testing.T) {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
-	// Should use the _content fallback value
-	if result.Content != "original-unparseable-content" {
-		t.Errorf("Expected content 'original-unparseable-content', got %s", result.Content)
+	// Should use the _content fallback value in the value field
+	if result.Value != "original-unparseable-content" {
+		t.Errorf("Expected value 'original-unparseable-content', got %s", result.Value)
+	}
+
+	// Content should still be empty for HTTPS records
+	if result.Content != "" {
+		t.Errorf("Expected empty content for HTTPS records, got %s", result.Content)
 	}
 }

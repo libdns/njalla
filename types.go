@@ -28,6 +28,7 @@ type addRecordRequest struct {
 	Weight  int    `json:"weight,omitempty"`
 	Port    int    `json:"port,omitempty"`
 	Target  string `json:"target,omitempty"`
+	Value   string `json:"value,omitempty"`
 }
 
 type addRecordResponse struct {
@@ -41,6 +42,7 @@ type addRecordResponse struct {
 	Weight  int    `json:"weight,omitempty"`
 	Port    int    `json:"port,omitempty"`
 	Target  string `json:"target,omitempty"`
+	Value   string `json:"value,omitempty"`
 }
 
 type editRecordRequest struct {
@@ -54,6 +56,7 @@ type editRecordRequest struct {
 	Weight  int    `json:"weight,omitempty"`
 	Port    int    `json:"port,omitempty"`
 	Target  string `json:"target,omitempty"`
+	Value   string `json:"value,omitempty"`
 }
 
 type removeRecordRequest struct {
@@ -73,6 +76,7 @@ type njallaRecord struct {
 	Weight  int    `json:"weight,omitempty"`
 	Port    int    `json:"port,omitempty"`
 	Target  string `json:"target,omitempty"`
+	Value   string `json:"value,omitempty"`
 }
 
 // njallaRecordToLibdns converts a Njalla record to a libdns Record
@@ -154,19 +158,19 @@ func njallaRecordToLibdns(record njallaRecord) (libdns.Record, error) {
 		}, nil
 
 	case "HTTPS":
-		// Parse SvcParams from content if present
+		// Parse SvcParams from value field (not content) for HTTPS records
 		var params libdns.SvcParams
-		if record.Content != "" {
+		if record.Value != "" {
 			var err error
-			params, err = libdns.ParseSvcParams(record.Content)
+			params, err = libdns.ParseSvcParams(record.Value)
 			if err != nil {
-				// If parsing fails, create empty params and store the content as a fallback
+				// If parsing fails, create empty params and store the value as a fallback
 				params = make(libdns.SvcParams)
-				// Store unparseable content as a fallback
-				params["_content"] = []string{record.Content}
+				// Store unparseable value as a fallback
+				params["_content"] = []string{record.Value}
 			}
 		} else {
-			// Initialize empty params if no content
+			// Initialize empty params if no value
 			params = make(libdns.SvcParams)
 		}
 
@@ -283,17 +287,17 @@ func libdnsRecordToNjalla(record libdns.Record, zone string) (njallaRecord, erro
 		result.Target = r.Target
 		result.Prio = int(r.Priority)
 
-		// Handle SvcParams - serialize them to content field
-		// Note: This is a workaround since Njalla's API doesn't fully support SvcParams
+		// Handle SvcParams - serialize them to value field for HTTPS records
 		if len(r.Params) > 0 {
 			// If there's a special _content key (from parsing errors), use it directly
 			if content, exists := r.Params["_content"]; exists && len(content) > 0 {
-				result.Content = content[0]
+				result.Value = content[0]
 			} else {
 				// Otherwise, serialize the params to string format
-				result.Content = r.Params.String()
+				result.Value = r.Params.String()
 			}
 		}
+		// Note: Content field stays empty for HTTPS records per Njalla API requirements
 
 		if pd, ok := r.ProviderData.(map[string]string); ok {
 			id = pd["id"]

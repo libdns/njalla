@@ -120,6 +120,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, records []lib
 			Weight:  njallaRec.Weight,
 			Port:    njallaRec.Port,
 			Target:  njallaRec.Target,
+			Value:   njallaRec.Value,
 		}
 		var resp addRecordResponse
 
@@ -230,6 +231,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 			Weight:  njallaRec.Weight,
 			Port:    njallaRec.Port,
 			Target:  njallaRec.Target,
+			Value:   njallaRec.Value,
 		}
 		var resp njallaRecord
 
@@ -292,6 +294,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 				Weight:  njallaRec.Weight,
 				Port:    njallaRec.Port,
 				Target:  njallaRec.Target,
+				Value:   njallaRec.Value,
 			}
 			var resp njallaRecord
 
@@ -318,6 +321,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, records []libdns
 				Weight:  njallaRec.Weight,
 				Port:    njallaRec.Port,
 				Target:  njallaRec.Target,
+				Value:   njallaRec.Value,
 			}
 			var resp addRecordResponse
 
@@ -481,6 +485,10 @@ func extractRecordID(record libdns.Record) string {
 			return pd["id"]
 		}
 	case libdns.SRV:
+		if pd, ok := r.ProviderData.(map[string]string); ok {
+			return pd["id"]
+		}
+	case libdns.ServiceBinding:
 		if pd, ok := r.ProviderData.(map[string]string); ok {
 			return pd["id"]
 		}
